@@ -1,0 +1,16 @@
+# Flash dumps and firmware images: never commit (dumps contain Wi-Fi credentials)
+*.bin
+*.gz
+*.elf
+*.zip
+dumps/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+.vscode/

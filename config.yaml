@@ -1,0 +1,206 @@
+# FluidNC config.yaml - Lunyee 4040 Nova, stock ESP32 controller board
+#
+# Pinout recovered by disassembling the stock firmware
+# (Grbl_ESP32 1.3a 20231030, machine "XBoard E1.0", build "VGRBL-4axis-4040-6.0-V1.0")
+# and then checked on a real machine. Syntax checked against FluidNC v4.1.1.
+#
+# WARNING: this is NOT the pinout of the public "XBoard E1.0" definition
+# (X and Z are swapped there, and enable/spindle/limit pins differ).
+#
+# Check docs/en/01-identify-your-board.md before using this file on your machine.
+# Comments are kept on their own lines on purpose.
+
+board: Lunyee 4040 Nova ESP32
+name: Lunyee 4040 Nova
+meta: Pinout extracted from stock flash dump 2026-11-16
+
+stepping:
+  engine: RMT
+  # Stock: $Stepper/IdleTime=25 (motors released 25 ms after motion stops).
+  # Use 255 to keep the motors energized all the time
+  # (same as the vendor setting $Motor/Lock=On).
+  idle_ms: 25
+  # Stock: $Stepper/Pulse=10, no direction delay.
+  # FluidNC (RMT engine) caps the step rate at 1000000 / (2 x pulse_us + dir_delay_us).
+  # X and Y at 4000 mm/min need 53333 steps/s: 10 us would give 50000 (rejected),
+  # 9 us gives 55555. Pulse is 9 us high, 9.75 us low at top speed
+  # (stock: 10 us / 8.75 us).
+  pulse_us: 9
+  dir_delay_us: 0
+  disable_delay_us: 0
+
+axes:
+  # Enable line shared by the 4 drivers. Stock: GPIO13 HIGH = motors disabled
+  # ($Stepper/EnableInvert=Off). If the motors stay free when they should hold,
+  # add ":low".
+  shared_stepper_disable_pin: gpio.13
+
+  x:
+    steps_per_mm: 800.000
+    max_rate_mm_per_min: 4000.000
+    acceleration_mm_per_sec2: 50.000
+    max_travel_mm: 400.000
+    soft_limits: false
+    homing:
+      # Stock: $Homing/Cycle1=XY, $Homing/DirInvert=XY (homes toward negative)
+      cycle: 2
+      positive_direction: false
+      mpos_mm: 0.000
+      feed_mm_per_min: 25.000
+      seek_mm_per_min: 1000.000
+      settle_ms: 250
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+    motor0:
+      # Two switches wired to the same input. GPIO34 is input-only with no internal
+      # pull-up (the board provides it). Active LOW ($Limits/Invert=On).
+      limit_all_pin: gpio.34:low
+      hard_limits: true
+      pulloff_mm: 2.000
+      standard_stepper:
+        step_pin: gpio.33
+        # ":low" = inverted direction ($Stepper/DirInvert=XZ)
+        direction_pin: gpio.32:low
+        disable_pin: NO_PIN
+
+  y:
+    steps_per_mm: 800.000
+    max_rate_mm_per_min: 4000.000
+    acceleration_mm_per_sec2: 50.000
+    max_travel_mm: 400.000
+    soft_limits: false
+    homing:
+      cycle: 2
+      positive_direction: false
+      mpos_mm: 0.000
+      feed_mm_per_min: 25.000
+      seek_mm_per_min: 1000.000
+      settle_ms: 250
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+    motor0:
+      limit_all_pin: gpio.39:low
+      hard_limits: true
+      pulloff_mm: 2.000
+      standard_stepper:
+        step_pin: gpio.26
+        direction_pin: gpio.25
+        disable_pin: NO_PIN
+
+  z:
+    steps_per_mm: 800.000
+    max_rate_mm_per_min: 800.000
+    acceleration_mm_per_sec2: 50.000
+    max_travel_mm: 130.000
+    soft_limits: false
+    homing:
+      # Stock: $Homing/Cycle0=Z, homes toward positive (up)
+      cycle: 1
+      positive_direction: true
+      mpos_mm: 0.000
+      feed_mm_per_min: 25.000
+      seek_mm_per_min: 1000.000
+      settle_ms: 250
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+    motor0:
+      limit_all_pin: gpio.36:low
+      hard_limits: true
+      pulloff_mm: 2.000
+      standard_stepper:
+        step_pin: gpio.14
+        direction_pin: gpio.27:low
+        disable_pin: NO_PIN
+
+  a:
+    # 4th driver (rotary axis). UNTESTED: nothing was connected to it.
+    # The stock firmware assigns no limit input to A, so there is no homing.
+    steps_per_mm: 800.000
+    max_rate_mm_per_min: 2000.000
+    acceleration_mm_per_sec2: 50.000
+    max_travel_mm: 400.000
+    soft_limits: false
+    motor0:
+      hard_limits: false
+      pulloff_mm: 2.000
+      standard_stepper:
+        step_pin: gpio.12
+        direction_pin: gpio.15
+        disable_pin: NO_PIN
+
+# SD card reader on the SPI bus (default VSPI pins in the stock firmware)
+spi:
+  miso_pin: gpio.19
+  mosi_pin: gpio.23
+  sck_pin: gpio.18
+
+sdcard:
+  cs_pin: gpio.5
+  card_detect_pin: NO_PIN
+  # The stock firmware ran the card at 4 MHz (FluidNC default is 8 MHz).
+  frequency_hz: 4000000
+
+control:
+  # Physical "Home" button: input with internal pull-up, active LOW.
+  # In the stock firmware it starts homing ($H) from Idle or Alarm.
+  homing_button_pin: gpio.22:low:pu
+
+coolant:
+  # The stock firmware drives NO output for M8/M9
+  # (flood pin compiled as "none", mist not compiled in).
+  flood_pin: NO_PIN
+  mist_pin: NO_PIN
+
+probe:
+  # GPIO35 is input-only with no internal pull-up (the board provides it).
+  # Idle = HIGH, contact = LOW. Checked on the machine: the stock firmware shows
+  # Pn:P at rest (inverted display) but triggers on the HIGH-to-LOW transition,
+  # and it ignores $Probe/Invert.
+  # With FluidNC, "?" must NOT show P at rest and must show it on contact.
+  pin: gpio.35:low
+  check_mode_start: true
+
+start:
+  # Safety choice: boot in Alarm until $H (or $X) is done.
+  # The stock firmware boots straight into Idle (seen on the machine):
+  # set this to false to get that behaviour back.
+  must_home: true
+
+# Spindle: reproduces the stock behaviour exactly.
+#   GPIO2 = on/off output, HIGH on M3/M4, LOW on M5/reset/alarm (vendor addition)
+#   GPIO4 = 10 kHz PWM output, S0..S1000 = 0..100 %
+# Checked on the machine: the spindle relay closes on "M3 S0", so it is driven
+# by GPIO2. Nothing known is wired to GPIO4.
+# Simpler variant, equivalent for an on/off spindle:
+#   Relay:
+#     output_pin: gpio.2
+PWM:
+  pwm_hz: 10000
+  output_pin: gpio.4
+  enable_pin: gpio.2
+  direction_pin: NO_PIN
+  disable_with_s0: false
+  s0_with_disable: true
+  spinup_ms: 0
+  spindown_ms: 0
+  tool_num: 0
+  speed_map: 0=0.000% 1000=100.000%
+  off_on_alarm: true
+
+# Second serial port of the stock firmware (UART2, 115200 8N1, RX=GPIO16, TX=GPIO17),
+# most likely the offline controller / pendant connector. UNTESTED and left disabled:
+# a floating RX input can pick up noise. Uncomment if a pendant is plugged in.
+#uart1:
+#  txd_pin: gpio.17
+#  rxd_pin: gpio.16
+#  baud: 115200
+#  mode: 8N1
+#
+#uart_channel1:
+#  uart_num: 1
+#  report_interval_ms: 75
+
+arc_tolerance_mm: 0.002
+junction_deviation_mm: 0.010
+verbose_errors: false
+report_inches: false

@@ -1,0 +1,5 @@
+# xtensa_xref.py
+capstone>=6.0.0
+# fluidnc_serial.py
+pyserial>=3.5
+xmodem>=0.4
